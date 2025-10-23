@@ -103,10 +103,10 @@ def main():
         if DEPTH_MODEL_CHOICE == "unidepth":
             logging.info("i ] Using UniDepthV2-ONNX model.")
             # Assicurati che il percorso corrisponda al nome del file ONNX che hai generato
-            depth_estimator = DepthEstimatorUniDepth(model_path='unidepth-v2-vitl14.onnx')
+            depth_estimator = DepthEstimatorUniDepth(model_size=DEPTH_MODEL_SIZE)
         elif DEPTH_MODEL_CHOICE == "depthanything":
-            logging.info("i ] Using DepthAnything-ONNX model.")
-            depth_estimator = DepthEstimatorDepthAnything(model_size='small')
+            logging.info("i ] Using DepthAnythingV2-ONNX model.")
+            depth_estimator = DepthEstimatorDepthAnything(model_size=DEPTH_MODEL_SIZE)
         else:
             raise ValueError(f"Unknown depth model choice: {DEPTH_MODEL_CHOICE}")    
     except Exception as e:

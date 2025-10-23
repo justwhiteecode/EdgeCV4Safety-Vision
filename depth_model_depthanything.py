@@ -19,9 +19,9 @@ class DepthEstimatorDepthAnything:
         logging.info("Initializing DepthEstimator (DepthAnything) with ONNX Runtime.")
 
         model_map = {
-            'small': 'depth_anything_v2_metric_indoor_small.onnx',
-            'base': 'depth_anything_v2_metric_indoor_base.onnx',
-            'large': 'depth_anything_v2_metric_indoor_large.onnx'
+            'small': './models/depth_anything_v2_metric_indoor_small.onnx',
+            'base': './models/depth_anything_v2_metric_indoor_base.onnx',
+            'large': './models/depth_anything_v2_metric_indoor_large.onnx'
         }
         onnx_model_path = model_map.get(model_size.lower())
         if not onnx_model_path or not os.path.exists(onnx_model_path):

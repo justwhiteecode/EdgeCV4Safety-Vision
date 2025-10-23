@@ -15,8 +15,15 @@ class DepthEstimatorUniDepthONNX:
     Depth estimation using UniDepth V2 ONNX model, optimized with the best
     available ONNX Runtime Execution Provider.
     """
-    def __init__(self, model_path='unidepth-v2-vitl14.onnx'):
+    def __init__(self, model_size='small'):
         logging.info("Initializing DepthEstimator (UniDepth) with ONNX Runtime.")
+
+        model_map = {
+            'small': './models/unidepthv2s.onnx',
+            'base': './models/unidepthv2b.onnx',
+            'large': './models/unidepthv2l.onnx'
+        }
+        model_path = model_map.get(model_size.lower())
 
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file '{model_path}' not found.")

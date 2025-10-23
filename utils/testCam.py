@@ -9,55 +9,55 @@ CAMERA_FRAME_RATE = 5
 CAMERA_PIXEL_FORMAT = Aravis.PIXEL_FORMAT_BAYER_RG_8
 CAMERA_GAIN = 30.0
 CAMERA_AUTO_EXPOSURE = False
-CAMERA_EXPOSURE_TIME = 500  # microsecondi
+CAMERA_EXPOSURE_TIME = 500  # microseconds
 
-# Inizializza Aravis
+# Initialize Aravis
 camera = Aravis.Camera.new(None)
 device = camera.get_device()
 
-# Parametri baseq
+# Basic parameters
 try:
     camera.set_frame_rate(CAMERA_FRAME_RATE)
 except Exception as e:
-    print(f"Warning: impossibile impostare frame rate: {e}")
+    print(f"Warning: unable to set frame rate: {e}")
 
 try:
     camera.set_pixel_format(CAMERA_PIXEL_FORMAT)
 except Exception as e:
-    print(f"Warning: impossibile impostare pixel format: {e}")
+    print(f"Warning: unable to set pixel format: {e}")
 
 try:
     camera.set_gain(CAMERA_GAIN)
 except Exception as e:
-    print(f"Warning: impossibile impostare gain: {e}")
+    print(f"Warning: unable to set gain: {e}")
 
-# Esposizione
+# Exposure
 if CAMERA_AUTO_EXPOSURE:
     try:
         camera.set_exposure_mode(Aravis.ExposureMode.CONTINUOUS)
-        print("Esposizione impostata su automatica (Continuous).")
+        print("Exposure set to automatic (Continuous).")
     except AttributeError:
         try:
             camera.set_feature('ExposureAuto', 'Continuous')
-            print("Tentativo di impostare 'ExposureAuto' su 'Continuous'.")
+            print("Attempting to set 'ExposureAuto' to 'Continuous'.")
         except Exception as e:
-            print(f"Errore nel settare ExposureAuto: {e}. L'esposizione automatica potrebbe non essere configurata.")
+            print(f"Error setting ExposureAuto: {e}. Automatic exposure may not be configured.")
     except Exception as e:
-        print(f"Errore durante l'impostazione dell'esposizione automatica: {e}")
+        print(f"Error during automatic exposure setting: {e}")
 else:
     try:
         camera.set_exposure_mode(Aravis.ExposureMode.MANUAL)
         camera.set_exposure_time(CAMERA_EXPOSURE_TIME)
-        print(f"Esposizione impostata su manuale con tempo di esposizione: {CAMERA_EXPOSURE_TIME} µs")
+        print(f"Exposure set to manual with exposure time: {CAMERA_EXPOSURE_TIME} µs")
     except AttributeError:
         try:
             camera.set_feature('ExposureMode', 'Off')
             camera.set_feature('ExposureTime', CAMERA_EXPOSURE_TIME)
-            print(f"Tentativo di impostare 'ExposureMode' su 'Off' e 'ExposureTime' su {CAMERA_EXPOSURE_TIME} µs.")
+            print(f"Attempting to set 'ExposureMode' to 'Off' and 'ExposureTime' to {CAMERA_EXPOSURE_TIME} µs.")
         except Exception as e:
-            print(f"Errore nel settare ExposureMode/ExposureTime: {e}. L'esposizione manuale potrebbe non essere configurata.")
+            print(f"Error setting ExposureMode/ExposureTime: {e}. Manual exposure may not be configured.")
     except Exception as e:
-        print(f"Errore durante l'impostazione dell'esposizione manuale: {e}")
+        print(f"Error during manual exposure setting: {e}")
 
 # Stream setup
 payload = camera.get_payload()
@@ -67,11 +67,11 @@ for i in range(5):
 
 camera.start_acquisition()
 
-# Setup finestra
+# Setup window
 cv2.namedWindow("Camera", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("Camera", 800, 800)
 
-print("Premi 'q' per uscire.")
+print("Press 'q' to exit.")
 
 while True:
     buffer = stream.pop_buffer()
@@ -80,22 +80,22 @@ while True:
         height = camera.get_integer("Height")
         width = camera.get_integer("Width")
 
-        # Converte in numpy array Bayer (uint8)
+        # Convert to numpy array Bayer (uint8)
         frame = np.ndarray(
             buffer=data,
             shape=(height, width),
             dtype=np.uint8
         )
 
-        # Conversione BayerRG → RGB (CPU)
+        # Convert BayerRG → RGB (CPU)
         rgb = cv2.cvtColor(frame, cv2.COLOR_BAYER_RG2RGB)
 
-        # Mostra immagine
+        # Show image
         cv2.imshow("Camera", rgb)
 
         stream.push_buffer(buffer)
 
-    # Tasti
+    # Keys
     key = cv2.waitKey(1) & 0xFF
     if key == ord('q'):
         break

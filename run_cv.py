@@ -127,7 +127,7 @@ def main():
     # Initialize 3D bounding box estimator with default parameters
     # Simplified approach - focus on 2D detection with depth information
     if ENABLE_PSEUDO_3D:
-    bbox3d_estimator = BBox3DEstimator()
+        bbox3d_estimator = BBox3DEstimator()
     # Initialize Bird's Eye View if enabled
     if ENABLE_BEV:
         # Use a scale that works well for the 1-5 meter range
@@ -199,36 +199,35 @@ def main():
     while True:
         try:
             # Step 0: Frame acquisition from camera    
-            try:
-                # Read frame (last arrived, discard previous for real-time performance)
-                buffer = None
-                while True:
-                    b = aravis_stream.try_pop_buffer()
-                    if b is None:
-                        break
-                    if buffer:
-                        aravis_stream.push_buffer(buffer)
-                    buffer = b
+            # Read frame (last arrived, discard previous for real-time performance)
+            buffer = None
+            while True:
+                b = aravis_stream.try_pop_buffer()
+                if b is None:
+                    break
+                if buffer:
+                    aravis_stream.push_buffer(buffer)
+                buffer = b
 
-                if buffer is None:
-                    continue
-                # Data to image
-                frame = np.ndarray(
-                    buffer=buffer.get_data(),
-                    shape=(height, width),
-                    dtype=np.uint8
-                )
+            if buffer is None:
+                continue
+            # Data to image
+            frame = np.ndarray(
+                buffer=buffer.get_data(),
+                shape=(height, width),
+                dtype=np.uint8
+            )
 
-                # Frame conversion to RGB
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BAYER_RG2RGB)
+            # Frame conversion to RGB
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BAYER_RG2RGB)
 
-                if WINDOW_CAMERA_PREVIEW: cv2.imshow("Camera", frame_rgb)
+            if WINDOW_CAMERA_PREVIEW: cv2.imshow("Camera", frame_rgb)
 
-                # Make copies for different visualizations
-                original_frame = frame_rgb.copy()
-                detection_frame = frame_rgb.copy()
-                depth_frame = frame_rgb.copy()
-                result_frame = frame_rgb.copy()
+            # Make copies for different visualizations
+            original_frame = frame_rgb.copy()
+            detection_frame = frame_rgb.copy()
+            depth_frame = frame_rgb.copy()
+            result_frame = frame_rgb.copy()
 
             # Step 1: Object Detection (YOLO-ONNX)
             try:

@@ -1,5 +1,5 @@
 # Vision Submodule: A Real-Time 3D Computer Vision System
-This submodule implements an advanced computer vision system for real-time 3D perception. Using an industrial camera (via Aravis), the system performs 2D object detection and metric depth estimation to locate objects in 3D space and calculate their distance.
+This submodule, part of the [EdgeCV4Safety](https://github.com/justwhiteecode/EdgeCV4Safety.git), implements an advanced computer vision system for real-time 3D perception. Using an industrial camera (via Aravis), the system performs 2D object detection and metric depth estimation to locate objects in 3D space and calculate their distance.
 
 The architecture is designed to be **modular, high-performance, and cross-platform** thanks to the exclusive use of ONNX models, accelerated by the available hardware.
 

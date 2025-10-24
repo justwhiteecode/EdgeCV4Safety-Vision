@@ -25,7 +25,7 @@ The architecture is designed to be **modular, high-performance, and cross-platfo
 
 <br>
 
-## System Architecture ⚙️
+## Files Breakdown 📂
 The project is divided into clear, specialized modules:
 * `run_cv.py`: The **main script** and application entry-point. It manages the main loop: frame capture, model coordination, visualization, and result data streaming.
 * `detection_model.py`: Contains the `ObjectDetector` class, which encapsulates all logic for loading and running the YOLO11 ONNX model, supporting different model sizes (`"nano"`, `"small"`, `"medium"`, `"large"`, `"extra"`).

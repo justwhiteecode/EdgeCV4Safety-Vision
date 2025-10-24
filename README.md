@@ -26,7 +26,7 @@ The project is divided into clear, specialized modules:
 * `depth_model_depthanything.py`: Contains the `DepthEstimatorDepthAnything` class for the Depth Anything v2 model, supporting different model sizes (`"small"`, `"base"`, `"large"`).
 * `depth_model_unidepth_onnx.py`: Contains the `DepthEstimatorUniDepthONNX` class for the UniDepth v2 model, supporting different model sizes (`"small"`, `"base"`, `"large"`)..
 * `bbox3d_utils.py`: Provides utility functions for visualizing 3D bounding boxes and the Bird's Eye View.
-* `models/`: (Recommended) A folder to store all `.onnx` model files. For GitHub restrictions, only the lighter models are available by cloning the repo. A few other models can be found on [our HuggingFace page](https://huggingface.co/justwhitee/EdgeCV4Safety-Models/) (not all sizes have been compiled).
+* `models/`: (Recommended) A folder to store all `.onnx` model files. For GitHub restrictions, only the lighter models are available by cloning the repo. A few other models can be found on [our HuggingFace page](https://huggingface.co/justwhitee/EdgeCV4Safety-Models/tree/main) (not all sizes have been compiled).
 
 <br>
 
@@ -89,7 +89,7 @@ sudo apt install meson ninja-build -y
 
 ### 3. Model Download and Conversion
 **Download** the required **ONNX models** and place them in the project directory `models/` (*scripts will search them there*).
-Some models are already present on [our repo](https://huggingface.co/justwhitee/EdgeCV4Safety-Models/) created for this purpose on HuggingFace.
+Some models are already present on [our repo](https://huggingface.co/justwhitee/EdgeCV4Safety-Models/tree/main) created for this purpose on HuggingFace.
 
 If you want to compile by your own other sizes or even models that are not available on this repo or on HF, you can follow the following steps.
 

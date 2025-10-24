@@ -121,9 +121,9 @@ If you want to compile by your own other sizes or even models that are not avail
      *Note that camera height and width must be a multiple of 14 (the script should accommodate your values), and model sizes available are "vits", "vitb", "vitl"*. Feel free to change the `output-path`.
 
 * For **DepthAnything v2**:
-  1) Install ONNX and onnxruntime (_see installation section above_)
+  1) Install ONNX and onnxruntime (_see [installation section](https://github.com/justwhiteecode/EdgeCV4Safety-Vision/tree/master?tab=readme-ov-file#2-install-requirements)_)
      ```bash
-     pip3 install onnx
+     pip3 install onnx onnxruntime
      ```
   2) Clone [this repository](https://github.com/fabio-sim/Depth-Anything-ONNX.git) for the conversion.
   3) Run the `dynamo.py` script inside the main directory of the repository. You can change the dimension (vits, vitb, vitl),
@@ -141,11 +141,7 @@ image. You can find more images from dustynv [here](https://hub.docker.com/r/dus
 
 <br>
 
-## Running the program ▶️
-To run the program, you must run the **main script** from the terminal:
-```bash
-python3 run_cv.py
-```
+## Configuration and Usage 🛠️
 There are a bunch of parameters that can be changed in order to achieve your goals. They are all in the first part of the main script (`run_cv.py`). 
 Can be set:
 * **Depth estimation model** (DepthAnything v2 or UniDepth v2) and **size** (small, base, large).
@@ -196,6 +192,14 @@ Can be set:
   TARGET_NODE_IP = '192.168.37.50'
   TARGET_NODE_PORT = 13750
   ```
+
+<br>
+
+## Running the program ▶️
+To run the program, you must run the **main script** from the terminal:
+```bash
+python3 run_cv.py
+```
 
 <br>
 

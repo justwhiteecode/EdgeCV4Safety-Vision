@@ -14,8 +14,14 @@ The architecture is designed to be **modular, high-performance, and cross-platfo
   * PCs with **NVIDIA GPUs** (leveraging **CUDA** or **TensorRT**).
   * Windows PCs with** AMD/Intel GPUs** (leveraging **DirectML**).
   * Any machine with a **CPU**, as a universal fallback.
-* **Industrial Camera Integration**: Acquires video streams from GigE Vision or even USB3 Vision cameras using the Aravis library.
+* **Industrial Camera Integration**: Acquires video streams from GigE Vision or even USB3 Vision cameras using the [Aravis library](https://github.com/AravisProject/aravis.git).
 * *UDP Data Streaming*: Sends relevant data (like the minimum distance to an object) to another node on the network via UDP sockets, to communicate to the controller node data to make decisions on.
+
+<p align="center">
+  <img src="assets/pipe_vision.png" alt="Functional Flow Pipeline"/>
+  <br>
+  <i>Fig. 1 - Functional Flow of the Vision submodule.</i>
+</p>
 
 <br>
 

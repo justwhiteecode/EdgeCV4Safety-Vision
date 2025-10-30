@@ -87,14 +87,23 @@ sudo apt install meson ninja-build -y
     * For **NVIDIA Jetson**: Follow the official NVIDIA instructions to install the version optimized for JetPack. Some resources are available [here](https://elinux.org/Jetson_Zoo#ONNX_Runtime).
       ```bash
       # Download pip wheel from location above for your version of JetPack
-      $ wget https://nvidia.box.com/shared/static/iizg3ggrtdkqawkmebbfixo7sce6j365.whl -O onnxruntime_gpu-1.16.0-cp38-cp38-linux_aarch64.whl
+      wget https://nvidia.box.com/shared/static/iizg3ggrtdkqawkmebbfixo7sce6j365.whl -O onnxruntime_gpu-1.16.0-cp38-cp38-linux_aarch64.whl
       
       # Install pip wheel
-      $ pip3 install onnxruntime_gpu-1.16.0-cp38-cp38-linux_aarch64.whl
+      pip3 install onnxruntime_gpu-1.16.0-cp38-cp38-linux_aarch64.whl
       ```
 
+   _Note_: To run the application with UniDepth on TensorRT, you will need to have a recent version of TensorRT software due to operations that are not available on older versions. You need at least 8.6. For YOLO and DepthAnything, there are no relevant requirements (except `requirements.txt`).  
+
 ### 3. Model Download and Conversion
-**Download** the required **ONNX models** and place them in the project directory `models/` (*scripts will search them there*).
+**Download** or convert the required **ONNX models** and place them in the project directory `models/`. Paths are mapped in the code in the respective class and file (`depth_model_*.py` and `detection_model.py`), particularly in the `model_map` object in the first part of the script, like: 
+```python
+model_map = {
+            'small': './models/unidepthv2s.onnx', # you can change the file name like './models/unidepthv2_small_simplified.onnx'
+            'base': './models/unidepthv2b.onnx',
+            'large': './models/unidepthv2l.onnx'
+        }
+```
 Some models are already present on [our repo](https://huggingface.co/justwhitee/EdgeCV4Safety-Models/tree/main) created for this purpose on HuggingFace.
 
 If you want to compile by your own other sizes or even models that are not available on this repo or on HF, you can follow the following steps.
@@ -132,11 +141,16 @@ If you want to compile by your own other sizes or even models that are not avail
      ```bash
      python3 dynamo.py export --encoder vits --metric indoor -o depth_anything_v2_metric_indoor_small.onnx
      ```
-     
+
+ _Extra tip_: You can try to perform some optimisations on your ONNX models using `onnx-simplifier` (you can install it with pip: `pip install onnx-simplifier`):
+ ```bash
+ onnxsim input_model.onnx output_model_simplified.onnx
+ ```
+ 
 *Note: You do not need to compile the ONNX model on the same machine where it will be used, as ONNX files are agnostic. 
 However, to compile these files, you *have to first install all the requirements* for the specific model you are converting.*
 
-For conversion, but also for deployment purposes, it could be useful to use Docker with an appropriate image. For development and our tests with a Jetson AGX Orin, we used [dustynv/l4t-pytorch:r35.3.1](https://hub.docker.com/layers/dustynv/l4t-pytorch/r35.2.1/images/sha256-431d88d9124310f8932f63bbadfaa8c88167c0035225c2df5e4392ce74d32c38)
+For conversion, but maybe also for deployment purposes, it could be useful to use Docker with an appropriate image. For development and our tests with a Jetson AGX Orin, we used [dustynv/l4t-pytorch:r35.3.1](https://hub.docker.com/layers/dustynv/l4t-pytorch/r35.2.1/images/sha256-431d88d9124310f8932f63bbadfaa8c88167c0035225c2df5e4392ce74d32c38)
 image. You can find more images from dustynv [here](https://hub.docker.com/r/dustynv/l4t-pytorch/tags).
 
 <br>
@@ -145,34 +159,34 @@ image. You can find more images from dustynv [here](https://hub.docker.com/r/dus
 There are a bunch of parameters that can be changed in order to achieve your goals. They are all in the first part of the main script (`run_cv.py`). 
 Can be set:
 * **Depth estimation model** (DepthAnything v2 or UniDepth v2) and **size** (small, base, large).
-  ```bash
+  ```python
   DEPTH_MODEL_CHOICE = "unidepth" # Depth estimation model: "unidepth", "depthanything"
   DEPTH_MODEL_SIZE = "small"  # Depth model size: "small", "base", "large"
   ```
   *Note: make sure you have the corresponding ONNX model size in the `model/` folder*
 * **Object detection model size** (nano, small, medium, large, extra).
-  ```bash
+  ```python
   YOLO_MODEL_SIZE = "extra" # YOLO11 model size: "nano", "small", "medium", "large", "extra"
   ```
   *Note: make sure you have the corresponding ONNX model size in the `model/` folder*
 * **Object detection parameters and class filter** by specifiyng the class id number
-  ```bash
+  ```python
   CONF_THRESHOLD = 0.75  # Confidence threshold for object detection
   IOU_THRESHOLD = 0.6  # IoU threshold for NMS
   CLASSES = [0]  # Filter by class, e.g., [0, 1, 2] for specific CLASSES, None for all classes available
   ```
 * **Birds eye and Pseudo-3D visualisation**.
-  ```bash
+  ```python
   ENABLE_BEV = False  # Enable Bird's Eye View visualization
   ENABLE_PSEUDO_3D = True  # Enable pseudo-3D visualization
   ```
 * **Windows preview** of video streaming and results.
-  ```bash
+  ```python
   WINDOW_CAMERA_PREVIEW = False  # Show camera preview window
   WINDOW_RESULTS_PREVIEW = False  # Show results window
   ```
 * **Camera settings and information** for Aravis and the distance calculation of another fixed point in the scene.
-  ```bash
+  ```python
   CAMERA_IP = '192.168.37.150' # None for aravis auto-choice (first found)
   CAMERA_FRAME_RATE = 22 # Check max support (pixel format dependent), i.e,. on https://www.baslerweb.com/en/tools/frame-rate-calculator/camera=a2A2448-23gcBAS
   CAMERA_PIXEL_FORMAT = Aravis.PIXEL_FORMAT_BAYER_RG_8
@@ -188,7 +202,7 @@ Can be set:
   CAMERA_DISTANCE_FROM_FIXED_OBJECT = 2 # Distance from a known fixed object straight to the camera in meters (used for punctual depth estimation from this object)
   ```
 * **Communication node infomations**.
-  ```bash
+  ```python
   TARGET_NODE_IP = '192.168.37.50'
   TARGET_NODE_PORT = 13750
   ```

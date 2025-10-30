@@ -31,7 +31,7 @@ ENV/
 Thumbs.db 
 
 # TensorRT cache
-trt_cache/
+trt_cache*/
 
 # Temporary copies/versions
 *bck*
@@ -44,3 +44,7 @@ models/*
 !models/yolo11m.onnx
 !models/yolo11n.onnx
 !models/depth_anything_v2_metric_indoor_small.onnx
+
+check*.py
+test*.py
+/*tmp*

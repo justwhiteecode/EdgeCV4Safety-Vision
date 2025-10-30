@@ -13,21 +13,70 @@ import math
 import logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s.%(msecs)03d - %(message)s',
+    format='%(asctime)s.%(msecs)06d [%(name)s] - %(message)s',
     datefmt='%H:%M:%S' # To add date: %Y-%m-%d
 )
+
+main_logger = logging.getLogger('MAIN')
 
 # Classes imports
 from detection_model import ObjectDetector
 from depth_model_depthanything import DepthEstimatorDepthAnything
 from depth_model_unidepth import DepthEstimatorUniDepth
 from bbox3d_utils import BBox3DEstimator, BirdEyeView
-from load_camera_params import load_camera_params, apply_camera_params_to_estimator
 
 # Aravis (GigE Vision) https://github.com/AravisProject/aravis
 import gi
 gi.require_version('Aravis', '0.10')
 from gi.repository import Aravis
+
+# ======================================================================================================
+"""
+--------------------------------------------------------------------------------------------------------
+Configuration variables (modify these as needed)
+--------------------------------------------------------------------------------------------------------
+"""
+
+# Models settings
+DEPTH_MODEL_CHOICE = "unidepth" # Depth estimation model: "unidepth", "depthanything"
+DEPTH_MODEL_SIZE = "small"  # Depth model size: "small", "base", "large"
+YOLO_MODEL_SIZE = "extra" # YOLO11 model size: "nano", "small", "medium", "large", "extra"
+
+# Detection settings
+CONF_THRESHOLD = 0.5  # Confidence threshold for object detection
+IOU_THRESHOLD = 0.6  # IoU threshold for NMS
+CLASSES = [0]  # Filter by class, e.g., [0, 1, 2] for specific CLASSES, None for all classes available
+
+# Feature toggles
+ENABLE_BEV = False  # Enable Bird's Eye View visualization
+ENABLE_PSEUDO_3D = True  # Enable pseudo-3D computation
+
+# Preview enabled/disabled (strongly affects real-time performance)
+WINDOW_CAMERA_PREVIEW = False  # Show camera preview window
+WINDOW_RESULTS_PREVIEW = False  # Show results window
+
+# Camera settings
+CAMERA_IP = '192.168.37.150' # None for aravis auto-choice (first found)
+CAMERA_FRAME_RATE = 22 # Check max support (pixel format dependent) i.e. on https://www.baslerweb.com/en/tools/frame-rate-calculator/camera=a2A2448-23gcBAS
+CAMERA_PIXEL_FORMAT = Aravis.PIXEL_FORMAT_BAYER_RG_8
+CAMERA_GAIN = 30.0
+CAMERA_AUTO_EXPOSURE = True
+CAMERA_EXPOSURE_TIME = 8000
+CAMERA_BUFFER_TIMEOUT = 200000
+CAMERA_IMAGE_ROTATION_ANGLE = 0 # 0 to disable
+CAMERA_ROI_HEIGHT = 0 # 0 to disable
+CAMERA_ROI_WIDTH = 0 # 0 to disable
+BUFFER_QUEUE_SIZE = CAMERA_FRAME_RATE * 2 # Number of buffers that can be stored
+
+# Camera infos (Set to 0 to use distances from camera)
+CAMERA_HEIGHT_FROM_GROUND = 1.7 # Camera height from ground in meters
+CAMERA_DISTANCE_FROM_FIXED_OBJECT = 2 # Distance from a known fixed object straight to camerain meters (used for punctual depth estimation from this object)
+
+# Output Target Node settings
+TARGET_NODE_IP = '192.168.37.50'
+TARGET_NODE_PORT = 13750
+
+# ======================================================================================================
 
 def check_keypress():
     key = cv2.waitKey(1)
@@ -36,63 +85,16 @@ def check_keypress():
     return False
 
 def main():
-    # ======================================================================================================
-    """
-    --------------------------------------------------------------------------------------------------------
-    Configuration variables (modify these as needed)
-    --------------------------------------------------------------------------------------------------------
-    """
-
-    # Models settings
-    DEPTH_MODEL_CHOICE = "unidepth" # Depth estimation model: "unidepth", "depthanything"
-    DEPTH_MODEL_SIZE = "small"  # Depth model size: "small", "base", "large"
-    YOLO_MODEL_SIZE = "extra" # YOLO11 model size: "nano", "small", "medium", "large", "extra"
-
-    # Detection settings
-    CONF_THRESHOLD = 0.75  # Confidence threshold for object detection
-    IOU_THRESHOLD = 0.6  # IoU threshold for NMS
-    CLASSES = [0]  # Filter by class, e.g., [0, 1, 2] for specific CLASSES, None for all classes available
-
-    # Feature toggles
-    ENABLE_BEV = False  # Enable Bird's Eye View visualization
-    ENABLE_PSEUDO_3D = True  # Enable pseudo-3D visualization
-
-    # Preview enabled/disabled (strongly affects real-time performance)
-    WINDOW_CAMERA_PREVIEW = False  # Show camera preview window
-    WINDOW_RESULTS_PREVIEW = False  # Show results window
-
-    # Camera settings
-    CAMERA_IP = '192.168.37.150' # None for aravis auto-choice (first found)
-    CAMERA_FRAME_RATE = 22 # Check max support (pixel format dependent) i.e. on https://www.baslerweb.com/en/tools/frame-rate-calculator/camera=a2A2448-23gcBAS
-    CAMERA_PIXEL_FORMAT = Aravis.PIXEL_FORMAT_BAYER_RG_8
-    CAMERA_GAIN = 30.0
-    CAMERA_AUTO_EXPOSURE = True
-    CAMERA_EXPOSURE_TIME = 8000
-    CAMERA_BUFFER_TIMEOUT = 200000
-    CAMERA_IMAGE_ROTATION_ANGLE = 0 # 0 to disable
-    CAMERA_ROI_HEIGHT = 0 # 0 to disable
-    CAMERA_ROI_WIDTH = 0 # 0 to disable
-
-    # Camera infos (Set to 0 to use distances from camera)
-    CAMERA_HEIGHT_FROM_GROUND = 1.7 # Camera height from ground in meters
-    CAMERA_DISTANCE_FROM_FIXED_OBJECT = 2 # Distance from a known fixed object straight to camerain meters (used for punctual depth estimation from this object)
-
-    # Output Target Node settings
-    TARGET_NODE_IP = '192.168.37.50'
-    TARGET_NODE_PORT = 13750
-
-    # ======================================================================================================
-
     # Socket UDP for data sending to Target Node
     try:
         udp_client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        logging.info(f"i ] UDP Socket created to sendo data to {TARGET_NODE_IP}:{TARGET_NODE_PORT}")
+        main_logger.info(f"i ] UDP Socket created to sendo data to {TARGET_NODE_IP}:{TARGET_NODE_PORT}")
     except socket.error as e:
-        logging.info(f"e ] Error in creating UDP Socket: {e}")
+        main_logger.info(f"e ] Error in creating UDP Socket: {e}")
         udp_client_socket = None
     
     # Initialize models
-    logging.info("Initializing models...")
+    main_logger.info("Initializing models...")
     detector = ObjectDetector(
         model_size=YOLO_MODEL_SIZE,
         conf_thres=CONF_THRESHOLD, 
@@ -101,16 +103,16 @@ def main():
     )
     try:
         if DEPTH_MODEL_CHOICE == "unidepth":
-            logging.info("i ] Using UniDepthV2-ONNX model.")
+            main_logger.info("i ] Using UniDepthV2-ONNX model.")
             # Assicurati che il percorso corrisponda al nome del file ONNX che hai generato
             depth_estimator = DepthEstimatorUniDepth(model_size=DEPTH_MODEL_SIZE)
         elif DEPTH_MODEL_CHOICE == "depthanything":
-            logging.info("i ] Using DepthAnythingV2-ONNX model.")
+            main_logger.info("i ] Using DepthAnythingV2-ONNX model.")
             depth_estimator = DepthEstimatorDepthAnything(model_size=DEPTH_MODEL_SIZE)
         else:
             raise ValueError(f"Unknown depth model choice: {DEPTH_MODEL_CHOICE}")    
     except Exception as e:
-        logging.error(f"e ] CRITICAL: Error initializing depth estimator: {e}")
+        main_logger.error(f"e ] CRITICAL: Error initializing depth estimator: {e}")
         exit(1)
 
     #-------------------------------------------------------------------------------------------------------
@@ -140,10 +142,10 @@ def main():
     try:
         aravis_camera = Aravis.Camera.new(CAMERA_IP)
     except TypeError:
-        logging.info(f"e ] Error: Could not find Aravis camera at IP {CAMERA_IP}. Exiting.")
+        main_logger.info(f"e ] Error: Could not find Aravis camera at IP {CAMERA_IP}. Exiting.")
         exit(2)
     if not aravis_camera:
-        logging.info("e ] Error: No Aravis-compatible camera found. Exiting.")
+        main_logger.info("e ] Error: No Aravis-compatible camera found. Exiting.")
         exit(2)
     aravis_camera.set_frame_rate(CAMERA_FRAME_RATE)
     aravis_camera.set_pixel_format(CAMERA_PIXEL_FORMAT)
@@ -151,41 +153,41 @@ def main():
     if CAMERA_AUTO_EXPOSURE:
         try:
             aravis_camera.set_exposure_mode(Aravis.ExposureMode.CONTINUOUS)
-            logging.info("i ] Exposure set to continuous.")
+            main_logger.info("i ] Exposure set to continuous.")
         except AttributeError:
             try:
                 aravis_camera.set_exposure_mode(Aravis.ExposureMode.AUTO)
-                logging.info("i ] Attempting to set 'ExposureAuto' to 'Continuous'.")
+                main_logger.info("i ] Attempting to set 'ExposureAuto' to 'Continuous'.")
             except Exception as e:
-                logging.info(f"e ] Error setting ExposureAuto: {e}. Automatic exposure may not be configured.")
+                main_logger.info(f"e ] Error setting ExposureAuto: {e}. Automatic exposure may not be configured.")
         except Exception as e:
-            logging.info(f"e ] Error during setting of automatic exposure: {e}")
+            main_logger.info(f"e ] Error during setting of automatic exposure: {e}")
     else:
         try:
             aravis_camera.set_exposure_mode(Aravis.ExposureMode.MANUAL)
             aravis_camera.set_exposure_time(CAMERA_EXPOSURE_TIME)
-            logging.info(f"i ] Exposure set to manual with exposure time: {CAMERA_EXPOSURE_TIME} µs")
+            main_logger.info(f"i ] Exposure set to manual with exposure time: {CAMERA_EXPOSURE_TIME} µs")
         except AttributeError:
             try:
                 aravis_camera.set_feature('ExposureMode', 'Off')
                 aravis_camera.set_feature('ExposureTime', CAMERA_EXPOSURE_TIME)
-                logging.info(f"i ] Attempting to set 'ExposureMode' to 'Off' and 'ExposureTime' to {CAMERA_EXPOSURE_TIME} µs.")
+                main_logger.info(f"i ] Attempting to set 'ExposureMode' to 'Off' and 'ExposureTime' to {CAMERA_EXPOSURE_TIME} µs.")
             except Exception as e:
-                logging.info(f"e ] Error setting ExposureMode/ExposureTime: {e}. Manual exposure may not be configured.")
+                main_logger.info(f"e ] Error setting ExposureMode/ExposureTime: {e}. Manual exposure may not be configured.")
         except Exception as e:
-            logging.info(f"e ] Error during setting of manual exposure: {e}")
+            main_logger.info(f"e ] Error during setting of manual exposure: {e}")
     #-------------------------------------------------------------------------------------------------------
     # Get input video properties
     width, height = aravis_camera.get_sensor_size()
     aravis_camera.set_region(CAMERA_ROI_WIDTH, CAMERA_ROI_HEIGHT, width, height)
     payload = aravis_camera.get_payload()
-    logging.info(f"i ] Opening video source: {aravis_camera.get_model_name()} by {aravis_camera.get_vendor_name()} [{width} x {height}]")
+    main_logger.info(f"i ] Opening video source: {aravis_camera.get_model_name()} by {aravis_camera.get_vendor_name()} [{width} x {height}]")
     aravis_stream = aravis_camera.create_stream(None, None)
-    for _ in range(CAMERA_FRAME_RATE): 
+    for _ in range(BUFFER_QUEUE_SIZE): 
         aravis_stream.push_buffer(Aravis.Buffer.new_allocate(payload))
     
     #-------------------------------------------------------------------------------------------------------
-    logging.info("> ] Starting camera acquisition...")
+    main_logger.info("> ] Starting camera acquisition...")
     aravis_camera.start_acquisition()
 
     #-------------------------------------------------------------------------------------------------------
@@ -195,12 +197,13 @@ def main():
     fps_display = "FPS: --"
     
     #-------------------------------------------------------------------------------------------------------
-    logging.info("i ] Starting processing...")
+    main_logger.info("i ] Starting processing...")
     while True:
         try:
             # Step 0: Frame acquisition from camera    
             # Read frame (last arrived, discard previous for real-time performance)
             buffer = None
+
             while True:
                 b = aravis_stream.try_pop_buffer()
                 if b is None:
@@ -210,13 +213,18 @@ def main():
                 buffer = b
 
             if buffer is None:
+                main_logger.info("e ] No buffer received from camera.")
                 continue
-            # Data to image
-            frame = np.ndarray(
-                buffer=buffer.get_data(),
-                shape=(height, width),
-                dtype=np.uint8
-            )
+
+            try:
+                # Data to image
+                frame = np.ndarray(
+                    buffer=buffer.get_data(),
+                    shape=(height, width),
+                    dtype=np.uint8
+                )
+            finally:
+                aravis_stream.push_buffer(buffer)
 
             # Frame conversion to RGB
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BAYER_RG2RGB)
@@ -233,7 +241,7 @@ def main():
             try:
                 detection_frame, detections = detector.detect(detection_frame)
             except Exception as e:
-                    logging.info(f"e ] Error during object detection: {e}")
+                    main_logger.info(f"e ] Error during object detection: {e}")
                     detections = []
                     cv2.putText(detection_frame, "Detection Error", (10, 60), 
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
@@ -244,7 +252,7 @@ def main():
                 depth_map = depth_estimator.estimate_depth(original_frame)
                 depth_colored = depth_estimator.colorize_depth(depth_map)
             except Exception as e:
-                logging.info(f"Error during depth estimation: {e}")
+                main_logger.info(f"Error during depth estimation: {e}")
                 # Create a dummy depth map
                 depth_map = np.zeros((height, width), dtype=np.float32)
                 depth_colored = np.zeros((height, width, 3), dtype=np.uint8)
@@ -289,7 +297,7 @@ def main():
                     if obj_id is not None:
                         active_ids.append(obj_id)
                 except Exception as e:
-                    logging.info(f"Error processing detection: {e}")
+                    main_logger.info(f"Error processing detection: {e}")
                     continue
             # Clean up trackers for objects that are no longer detected
             bbox3d_estimator.cleanup_trackers(active_ids)
@@ -300,7 +308,7 @@ def main():
             for box_3d in boxes_3d:
                 try:
                     act_distance = abs((math.sqrt(pow(box_3d['depth_value'], 2) - pow(CAMERA_HEIGHT_FROM_GROUND, 2))) - CAMERA_DISTANCE_FROM_FIXED_OBJECT) # distance calculated from terrain projection of the camera to object (Pitagora theorem) and subtracting camera distance from a known fixed point
-                    logging.info(f"r ] Detected {box_3d['class_name']} ({box_3d['score']:.2f}) at depth {act_distance:.2f} m.")
+                    main_logger.info(f"r ] Detected {box_3d['class_name']} ({box_3d['score']:.2f}) at depth {act_distance:.2f} m.")
                     # Taking the minimum depth value (the closest object detected)
                     if act_distance < min_depth_value:
                         min_depth_value = act_distance
@@ -322,7 +330,7 @@ def main():
                         # Draw box with depth information
                         result_frame = bbox3d_estimator.draw_box_3d(result_frame, box_3d, color=color)
                 except Exception as e:
-                    logging.info(f"Error drawing box: {e}")
+                    main_logger.info(f"Error drawing box: {e}")
                     continue
 
             # Step 5: Send data via UDP if socket is available
@@ -330,11 +338,11 @@ def main():
                 try:
                     packed_distance = struct.pack('<f', float(min_depth_value)) # distance from arm
                     udp_client_socket.sendto(packed_distance, (TARGET_NODE_IP, TARGET_NODE_PORT))
-                    logging.info(f"Minimum distance '{min_depth_value:.2f}' m send via UDP to {TARGET_NODE_IP}:{TARGET_NODE_PORT}")
+                    main_logger.info(f"Minimum distance '{min_depth_value:.2f}' m send via UDP to {TARGET_NODE_IP}:{TARGET_NODE_PORT}")
                 except socket.error as e:
-                    logging.info(f"e ] Error while sending UDP packet: {e}")
+                    main_logger.info(f"e ] Error while sending UDP packet: {e}")
             else:
-                logging.info("e ] UDP Socket not initialized. Impossible to send data.")
+                main_logger.info("e ] UDP Socket not initialized. Impossible to send data.")
             
             # Draw Bird's Eye View if enabled
             if ENABLE_BEV:
@@ -371,7 +379,7 @@ def main():
                                    (10, height - bev_height + 20), 
                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
                 except Exception as e:
-                    logging.info(f"Error drawing BEV: {e}")
+                    main_logger.info(f"Error drawing BEV: {e}")
             
             # Calculate and display FPS
             frame_count += 1
@@ -380,10 +388,10 @@ def main():
                 elapsed_time = end_time - start_time
                 fps_value = frame_count / elapsed_time
                 fps_display = f"FPS: {fps_value:.1f}"
-                logging.info(f"i ] {fps_display}")
+                main_logger.info(f"i ] {fps_display}")
             # Add FPS and device info to the result frame
             if WINDOW_RESULTS_PREVIEW:
-                cv2.putText(result_frame, f"{fps_display} | Device: {device}", (30, height - 30), 
+                cv2.putText(result_frame, f"{fps_display}", (30, height - 30), 
                        cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 255), 3)
                 # Add depth map to the corner of the result frame
                 try:
@@ -392,20 +400,20 @@ def main():
                     depth_resized = cv2.resize(depth_colored, (depth_width, depth_height))
                     result_frame[0:depth_height, 0:depth_width] = depth_resized
                 except Exception as e:
-                    logging.info(f"Error adding depth map to result: {e}")
+                    main_logger.info(f"Error adding depth map to result: {e}")
                 
                 cv2.imshow("3D Object Detection", result_frame)
 
             # Check for key press to exit
             if (WINDOW_RESULTS_PREVIEW or WINDOW_CAMERA_PREVIEW) and check_keypress():
-                logging.info("i ] Exiting program...")
+                main_logger.info("i ] Exiting program...")
                 break
 
         except Exception as e:
-            logging.info(f"Error processing frame: {e}")
+            main_logger.info(f"Error processing frame: {e}")
             # Also check for key press during exception handling
             if (WINDOW_RESULTS_PREVIEW or WINDOW_CAMERA_PREVIEW) and check_keypress():
-                logging.info("i ] Exiting program...")
+                main_logger.info("i ] Exiting program...")
                 break
             continue
 
@@ -413,11 +421,9 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        logging.info("\nProgram interrupted by user (Ctrl+C)")
+        main_logger.info("\nProgram interrupted by user (Ctrl+C)")
     finally:
         # Cleanup
-        logging.info("Cleaning up resources...")
+        main_logger.info("Cleaning up resources...")
         aravis_camera.stop_acquisition()
         cv2.destroyAllWindows()
-        if buffer is not None:
-            aravis_stream.push_buffer(buffer)

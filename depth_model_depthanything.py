@@ -6,9 +6,11 @@ import onnxruntime as ort
 import logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s.%(msecs)03d - %(message)s',
+    format='%(asctime)s.%(msecs)06d [%(name)s] - %(message)s',
     datefmt='%H:%M:%S' # To add date: %Y-%m-%d
 )
+
+depthanything_logger = logging.getLogger('DEPTH ANYTHING')
 
 class DepthEstimatorDepthAnything:
     """
@@ -16,7 +18,7 @@ class DepthEstimatorDepthAnything:
     available ONNX Runtime Execution Provider for the current hardware.
     """
     def __init__(self, model_size='small'):
-        logging.info("Initializing DepthEstimator (DepthAnything) with ONNX Runtime.")
+        depthanything_logger.info("Initializing DepthEstimator (DepthAnything) with ONNX Runtime.")
 
         model_map = {
             'small': './models/depth_anything_v2_metric_indoor_small.onnx',
@@ -27,40 +29,40 @@ class DepthEstimatorDepthAnything:
         if not onnx_model_path or not os.path.exists(onnx_model_path):
             raise FileNotFoundError(f"Model file '{onnx_model_path}' not found for model size '{model_size}'.")
         
-        logging.info(f"Loading ONNX model from: {onnx_model_path}")
+        depthanything_logger.info(f"Loading ONNX model from: {onnx_model_path}")
 
         # Logic to automatically select the best available provider for depth estimation
         available_providers = ort.get_available_providers()
         provider_options = None
         
         if 'TensorrtExecutionProvider' in available_providers:
-            logging.info("Using TensorRT Execution Provider.")
+            depthanything_logger.info("Using TensorRT Execution Provider.")
             provider = 'TensorrtExecutionProvider'
             cache_path = os.path.join(os.path.dirname(__file__), "trt_cache_depthanything")
             if not os.path.exists(cache_path): os.makedirs(cache_path)
             provider_options = [{'trt_engine_cache_enable': True, 'trt_engine_cache_path': cache_path}]
         elif 'CUDAExecutionProvider' in available_providers:
             provider = 'CUDAExecutionProvider'
-            logging.info("Using CUDA Execution Provider.")
+            depthanything_logger.info("Using CUDA Execution Provider.")
         elif 'DmlExecutionProvider' in available_providers:
             provider = 'DmlExecutionProvider'
-            logging.info("Using DirectML Execution Provider.")
+            depthanything_logger.info("Using DirectML Execution Provider.")
         else:
             provider = 'CPUExecutionProvider'
-            logging.info("Using CPU Execution Provider.")
+            depthanything_logger.info("Using CPU Execution Provider.")
 
         try:
             self.session = ort.InferenceSession(onnx_model_path, providers=[provider], provider_options=provider_options)
-            logging.info(f"ONNX session created successfully using provider: {self.session.get_providers()[0]}")
+            depthanything_logger.info(f"ONNX session created successfully using provider: {self.session.get_providers()[0]}")
         except Exception as e:
-            logging.info(f"Error loading ONNX model: {e}. Falling back to CPU.")
+            depthanything_logger.info(f"Error loading ONNX model: {e}. Falling back to CPU.")
             self.session = ort.InferenceSession(onnx_model_path, providers=['CPUExecutionProvider'])
 
         input_details = self.session.get_inputs()[0]
         self.input_name = input_details.name
         self.input_height = input_details.shape[2]
         self.input_width = input_details.shape[3]
-        logging.info(f"Model expects input of size: ({self.input_height}, {self.input_width})")
+        depthanything_logger.info(f"Model expects input of size: ({self.input_height}, {self.input_width})")
 
     # Preprocess the input image
     def _preprocess(self, image):

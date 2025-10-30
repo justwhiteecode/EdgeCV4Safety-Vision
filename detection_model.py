@@ -6,9 +6,11 @@ import onnxruntime as ort
 import logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s.%(msecs)03d - %(message)s',
+    format='%(asctime)s.%(msecs)06d [%(name)s] - %(message)s',
     datefmt='%H:%M:%S' # To add date: %Y-%m-%d
 )
+
+yolo_logger = logging.getLogger('YOLO')
 
 class ObjectDetector:
     """
@@ -16,7 +18,7 @@ class ObjectDetector:
     available ONNX Runtime Execution Provider for the current hardware.
     """
     def __init__(self, model_size='small', conf_thres=0.25, iou_thres=0.45, classes=None):
-        logging.info("Initializing ObjectDetector with ONNX Runtime.")
+        yolo_logger.info("Initializing ObjectDetector with ONNX Runtime.")
         self.conf_threshold = conf_thres
         self.iou_threshold = iou_thres
 
@@ -31,14 +33,14 @@ class ObjectDetector:
         if not onnx_model_path or not os.path.exists(onnx_model_path):
             raise FileNotFoundError(f"Model file '{onnx_model_path}' not found for size '{model_size}'.")
         
-        logging.info(f"Loading ONNX model from: {onnx_model_path}")
+        yolo_logger.info(f"Loading ONNX model from: {onnx_model_path}")
         
         # Logic to automatically select the best available provider for object detection
         available_providers = ort.get_available_providers()
         provider_options = None
         
         if 'TensorrtExecutionProvider' in available_providers:
-            logging.info("Using TensorRT Execution Provider.")
+            yolo_logger.info("Using TensorRT Execution Provider.")
             provider = 'TensorrtExecutionProvider'
             cache_path = os.path.join(os.path.dirname(__file__), "trt_cache_yolo")
             if not os.path.exists(cache_path):
@@ -48,13 +50,13 @@ class ObjectDetector:
                 'trt_engine_cache_path': cache_path,
             }]
         elif 'CUDAExecutionProvider' in available_providers:
-            logging.info("Using CUDA Execution Provider.")
+            yolo_logger.info("Using CUDA Execution Provider.")
             provider = 'CUDAExecutionProvider'
         elif 'DmlExecutionProvider' in available_providers:
-            logging.info("Using DirectML Execution Provider (for Windows AMD/Intel GPU).")
+            yolo_logger.info("Using DirectML Execution Provider (for Windows AMD/Intel GPU).")
             provider = 'DmlExecutionProvider'
         else:
-            logging.info("No specialized GPU provider found. Using CPU Execution Provider.")
+            yolo_logger.info("No specialized GPU provider found. Using CPU Execution Provider.")
             provider = 'CPUExecutionProvider'
 
         try:
@@ -63,16 +65,16 @@ class ObjectDetector:
                 providers=[provider], 
                 provider_options=provider_options
             )
-            logging.info(f"ONNX session created successfully for YOLOv11 using provider: {self.session.get_providers()[0]}")
+            yolo_logger.info(f"ONNX session created successfully for YOLOv11 using provider: {self.session.get_providers()[0]}")
         except Exception as e:
-            logging.info(f"Error loading YOLOv11 ONNX model: {e}. Falling back to CPU.")
+            yolo_logger.info(f"Error loading YOLOv11 ONNX model: {e}. Falling back to CPU.")
             self.session = ort.InferenceSession(onnx_model_path, providers=['CPUExecutionProvider'])
 
         input_details = self.session.get_inputs()[0]
         self.input_name = input_details.name
         self.input_height = input_details.shape[2]
         self.input_width = input_details.shape[3]
-        logging.info(f"YOLOv11 model expects input of size: ({self.input_height}, {self.input_width})")
+        yolo_logger.info(f"YOLOv11 model expects input of size: ({self.input_height}, {self.input_width})")
 
         self.filter_classes = classes
         self.classes = self._load_coco_classes()

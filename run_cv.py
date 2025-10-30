@@ -104,7 +104,6 @@ def main():
     try:
         if DEPTH_MODEL_CHOICE == "unidepth":
             main_logger.info("i ] Using UniDepthV2-ONNX model.")
-            # Assicurati che il percorso corrisponda al nome del file ONNX che hai generato
             depth_estimator = DepthEstimatorUniDepth(model_size=DEPTH_MODEL_SIZE)
         elif DEPTH_MODEL_CHOICE == "depthanything":
             main_logger.info("i ] Using DepthAnythingV2-ONNX model.")

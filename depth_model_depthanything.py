@@ -17,7 +17,7 @@ class DepthEstimatorDepthAnything:
     Depth estimation using Depth Anything v2 ONNX model, optimized with the best
     available ONNX Runtime Execution Provider for the current hardware.
     """
-    def __init__(self, model_size='small'):
+    def __init__(self, model_size='small', provider=None):
         depthanything_logger.info("Initializing DepthEstimator (DepthAnything) with ONNX Runtime.")
 
         model_map = {
@@ -34,17 +34,23 @@ class DepthEstimatorDepthAnything:
         # Logic to automatically select the best available provider for depth estimation
         available_providers = ort.get_available_providers()
         provider_options = None
+        sess_options = ort.SessionOptions()
         
-        if 'TensorrtExecutionProvider' in available_providers:
+        if 'TensorrtExecutionProvider' in available_providers and (provider is None or 'tensorrt' in provider.lower()):
             depthanything_logger.info("Using TensorRT Execution Provider.")
             provider = 'TensorrtExecutionProvider'
             cache_path = os.path.join(os.path.dirname(__file__), "trt_cache_depthanything")
             if not os.path.exists(cache_path): os.makedirs(cache_path)
-            provider_options = [{'trt_engine_cache_enable': True, 'trt_engine_cache_path': cache_path}]
-        elif 'CUDAExecutionProvider' in available_providers:
+            provider_options = [{
+                'trt_engine_cache_enable': True, 
+                'trt_engine_cache_path': cache_path,
+                #'trt_fp16_enable': False,
+            }]
+            sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        elif 'CUDAExecutionProvider' in available_providers and (provider is None or 'cuda' in provider.lower()):
             provider = 'CUDAExecutionProvider'
             depthanything_logger.info("Using CUDA Execution Provider.")
-        elif 'DmlExecutionProvider' in available_providers:
+        elif 'DmlExecutionProvider' in available_providers and (provider is None or 'dml' in provider.lower()):
             provider = 'DmlExecutionProvider'
             depthanything_logger.info("Using DirectML Execution Provider.")
         else:
@@ -52,7 +58,12 @@ class DepthEstimatorDepthAnything:
             depthanything_logger.info("Using CPU Execution Provider.")
 
         try:
-            self.session = ort.InferenceSession(onnx_model_path, providers=[provider], provider_options=provider_options)
+            self.session = ort.InferenceSession(
+                onnx_model_path,
+                sess_options=sess_options,
+                providers=[provider], 
+                provider_options=provider_options
+            )
             depthanything_logger.info(f"ONNX session created successfully using provider: {self.session.get_providers()[0]}")
         except Exception as e:
             depthanything_logger.info(f"Error loading ONNX model: {e}. Falling back to CPU.")

@@ -46,5 +46,6 @@ models/*
 !models/depth_anything_v2_metric_indoor_small.onnx
 
 check*.py
-test*.py
+*test*
 /*tmp*
+/log*

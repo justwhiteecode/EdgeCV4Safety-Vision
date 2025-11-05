@@ -40,11 +40,11 @@ class DepthEstimatorUniDepth:
     Depth estimation using UniDepth V2 ONNX model, optimized with the best
     available ONNX Runtime Execution Provider.
     """
-    def __init__(self, model_size='small'):
+    def __init__(self, model_size='small', provider=None):
         unidepth_logger.info("Initializing DepthEstimator (UniDepth) with ONNX Runtime.")
 
         model_map = {
-            'small': './models/unidepthv2s_simplified.onnx',
+            'small': './models/unidepthv2s.onnx',
             'base': './models/unidepthv2b.onnx',
             'large': './models/unidepthv2l.onnx'
         }
@@ -58,22 +58,36 @@ class DepthEstimatorUniDepth:
         # Logic to automatically select the best available provider for object detection
         available_providers = ort.get_available_providers()
         provider_options = None
+        sess_options = ort.SessionOptions()
 
-        if 'TensorrtExecutionProvider' in available_providers and is_tensorrt_compatible():
+        if 'TensorrtExecutionProvider' in available_providers and is_tensorrt_compatible() and (provider is None or 'tensorrt' in provider.lower()):
             unidepth_logger.info("Using TensorRT Execution Provider.")
             provider = 'TensorrtExecutionProvider'
             cache_path = os.path.join(os.path.dirname(__file__), "trt_cache_unidepth")
             if not os.path.exists(cache_path): os.makedirs(cache_path)
-            provider_options = [{'trt_engine_cache_enable': True, 'trt_engine_cache_path': cache_path}]
-        elif 'CUDAExecutionProvider' in available_providers:
+            provider_options = [{
+                'trt_engine_cache_enable': True, 
+                'trt_engine_cache_path': cache_path,
+                #'trt_fp16_enable': False,
+            }]
+            sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        elif 'CUDAExecutionProvider' in available_providers and (provider is None or 'cuda' in provider.lower()):
             provider = 'CUDAExecutionProvider'
             unidepth_logger.info("Using CUDA Execution Provider.")
+        elif 'DmlExecutionProvider' in available_providers and (provider is None or 'dml' in provider.lower()):
+            unidepth_logger.info("Using DirectML Execution Provider (for Windows AMD/Intel GPU).")
+            provider = 'DmlExecutionProvider'
         else:
             provider = 'CPUExecutionProvider'
             unidepth_logger.info("Using CPU Execution Provider.")
 
         try:
-            self.session = ort.InferenceSession(model_path, providers=[provider], provider_options=provider_options)
+            self.session = ort.InferenceSession(
+                model_path,
+                sess_options=sess_options,
+                providers=[provider],
+                provider_options=provider_options
+            )
             unidepth_logger.info(f"ONNX session created successfully using provider: {self.session.get_providers()[0]}")
         except Exception as e:
             unidepth_logger.info(f"Error loading ONNX model: {e}. Falling back to CPU.")

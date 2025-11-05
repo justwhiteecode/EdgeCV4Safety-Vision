@@ -10,6 +10,8 @@ import struct
 import logging
 import math
 
+import argparse
+
 import logging
 logging.basicConfig(
     level=logging.INFO,
@@ -33,7 +35,7 @@ from gi.repository import Aravis
 # ======================================================================================================
 """
 --------------------------------------------------------------------------------------------------------
-Configuration variables (modify these as needed)
+Configuration variables (modify these as needed) - They will be overridden by command-line arguments
 --------------------------------------------------------------------------------------------------------
 """
 
@@ -50,10 +52,6 @@ CLASSES = [0]  # Filter by class, e.g., [0, 1, 2] for specific CLASSES, None for
 # Feature toggles
 ENABLE_BEV = False  # Enable Bird's Eye View visualization
 ENABLE_PSEUDO_3D = True  # Enable pseudo-3D computation
-
-# Preview enabled/disabled (strongly affects real-time performance)
-WINDOW_CAMERA_PREVIEW = False  # Show camera preview window
-WINDOW_RESULTS_PREVIEW = False  # Show results window
 
 # Camera settings
 CAMERA_IP = '192.168.37.150' # None for aravis auto-choice (first found)
@@ -84,7 +82,7 @@ def check_keypress():
         return True
     return False
 
-def main():
+def main(args):
     # Socket UDP for data sending to Target Node
     try:
         udp_client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -95,19 +93,24 @@ def main():
     
     # Initialize models
     main_logger.info("Initializing models...")
+    YOLO_MODEL_SIZE = args.sizeYOLO or YOLO_MODEL_SIZE
+
     detector = ObjectDetector(
         model_size=YOLO_MODEL_SIZE,
         conf_thres=CONF_THRESHOLD, 
         iou_thres=IOU_THRESHOLD,   
-        classes=CLASSES
+        classes=CLASSES,
+        provider=args.providerYOLO
     )
     try:
-        if DEPTH_MODEL_CHOICE == "unidepth":
+        DEPTH_MODEL_CHOICE = args.DepthModel or DEPTH_MODEL_CHOICE
+        DEPTH_MODEL_SIZE = args.sizeDepth or DEPTH_MODEL_SIZE
+        if DEPTH_MODEL_CHOICE.lower() == "unidepth":
             main_logger.info("i ] Using UniDepthV2-ONNX model.")
-            depth_estimator = DepthEstimatorUniDepth(model_size=DEPTH_MODEL_SIZE)
-        elif DEPTH_MODEL_CHOICE == "depthanything":
+            depth_estimator = DepthEstimatorUniDepth(model_size=DEPTH_MODEL_SIZE, provider=args.providerDepth)
+        elif DEPTH_MODEL_CHOICE.lower() == "depthanything":
             main_logger.info("i ] Using DepthAnythingV2-ONNX model.")
-            depth_estimator = DepthEstimatorDepthAnything(model_size=DEPTH_MODEL_SIZE)
+            depth_estimator = DepthEstimatorDepthAnything(model_size=DEPTH_MODEL_SIZE, provider=args.providerDepth)
         else:
             raise ValueError(f"Unknown depth model choice: {DEPTH_MODEL_CHOICE}")    
     except Exception as e:
@@ -116,10 +119,12 @@ def main():
 
     #-------------------------------------------------------------------------------------------------------
     # Windows setup
+    WINDOW_CAMERA_PREVIEW = args.preview
     if WINDOW_CAMERA_PREVIEW:
         cv2.namedWindow("Camera", cv2.WINDOW_NORMAL)
         cv2.resizeWindow("Camera", 800, 800)
 
+    WINDOW_RESULTS_PREVIEW = args.results
     if WINDOW_RESULTS_PREVIEW:
         cv2.namedWindow("3D Object Detection", cv2.WINDOW_NORMAL)
         cv2.resizeWindow("3D Object Detection", 800, 800)
@@ -417,8 +422,74 @@ def main():
             continue
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+
+    parser.add_argument(
+        '--providerYOLO',
+        type=str,
+        default=None,
+        required=False,
+        choices=['TensorRT', 'CUDA', 'DML', 'CPU'], # Options for YOLO model
+        help="Specify the runtime provider to use for YOLO models. \nExample: --providerYOLO 'TensorRT'"
+    )
+
+    parser.add_argument(
+        '--providerDepth',
+        type=str,
+        default=None,
+        required=False,
+        choices=['TensorRT', 'CUDA', 'DML', 'CPU'], # Options for Depth Estimation models
+        help="Specify the runtime provider to use for depth estimation models. \nExample: --providerDepth 'TensorRT'"
+    )
+
+    parser.add_argument(
+        '--sizeYOLO',
+        type=str,
+        default=None,
+        required=False,
+        choices=['nano', 'small', 'medium', 'large', 'extra'], # Options for YOLO size
+        help="Specify the size of the model for YOLO. \nExample: --sizeYOLO 'medium'"
+    )
+
+    parser.add_argument(
+        '--sizeDepth',
+        type=str,
+        default=None,
+        required=False,
+        choices=['small', 'base', 'large'], # Options for Depth Estimation models
+        help="Specify the size of the model for Depth Estimation. \nExample: --sizeDepth 'base'"
+    )
+
+    parser.add_argument(
+        '--DepthModel',
+        type=str,
+        default=None,
+        required=False,
+        choices=['UniDepth', 'DepthAnything'], # Options for Depth Model
+        help="Specify the model to use for depth estimation. \nExample: --DepthModel 'UniDepth'"
+    )
+
+    parser.add_argument(
+        '--preview',
+        action='store_true',
+        default=False,
+        help="Enables camera preview on window (affects latency and performance). Specify the flag to enable."
+    )
+
+    parser.add_argument(
+        '--results',
+        action='store_true',
+        default=False,
+        help="Enables results preview on window (affects latency and performance). Specify the flag to enable."
+    )
+
+    args = parser.parse_args()
+
     try:
-        main()
+        main(args)
     except KeyboardInterrupt:
         main_logger.info("\nProgram interrupted by user (Ctrl+C)")
     finally:

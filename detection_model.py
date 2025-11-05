@@ -17,7 +17,7 @@ class ObjectDetector:
     Object detection using a YOLOv11 ONNX model, optimized with the best
     available ONNX Runtime Execution Provider for the current hardware.
     """
-    def __init__(self, model_size='small', conf_thres=0.25, iou_thres=0.45, classes=None):
+    def __init__(self, model_size='small', conf_thres=0.25, iou_thres=0.45, classes=None, provider=None):
         yolo_logger.info("Initializing ObjectDetector with ONNX Runtime.")
         self.conf_threshold = conf_thres
         self.iou_threshold = iou_thres
@@ -39,7 +39,7 @@ class ObjectDetector:
         available_providers = ort.get_available_providers()
         provider_options = None
         
-        if 'TensorrtExecutionProvider' in available_providers:
+        if 'TensorrtExecutionProvider' in available_providers and (provider is None or 'tensorrt' in provider.lower()):
             yolo_logger.info("Using TensorRT Execution Provider.")
             provider = 'TensorrtExecutionProvider'
             cache_path = os.path.join(os.path.dirname(__file__), "trt_cache_yolo")
@@ -49,10 +49,10 @@ class ObjectDetector:
                 'trt_engine_cache_enable': True,
                 'trt_engine_cache_path': cache_path,
             }]
-        elif 'CUDAExecutionProvider' in available_providers:
+        elif 'CUDAExecutionProvider' in available_providers and (provider is None or 'cuda' in provider.lower()):
             yolo_logger.info("Using CUDA Execution Provider.")
             provider = 'CUDAExecutionProvider'
-        elif 'DmlExecutionProvider' in available_providers:
+        elif 'DmlExecutionProvider' in available_providers and (provider is None or 'dml' in provider.lower()):
             yolo_logger.info("Using DirectML Execution Provider (for Windows AMD/Intel GPU).")
             provider = 'DmlExecutionProvider'
         else:

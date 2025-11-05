@@ -72,7 +72,7 @@ sudo apt install meson ninja-build -y
    ```bash
    pip3 install -r requirements.txt
    ```
-3) Install ONNX runtime. This installation is critical and depends on your hardware.
+3) Install ONNX runtime. This installation is critical and depends on your hardware. For any doubts, check [documentation](https://onnxruntime.ai/docs/install/).
     
     * For **CPU only** sysyems:
       ```bash

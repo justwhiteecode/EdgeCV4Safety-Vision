@@ -250,8 +250,7 @@ def main(args):
                     cv2.putText(detection_frame, "Detection Error", (10, 60), 
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
-            # Step 2: Depth Estimation (UnidpethV2-ONNX or DepthAnything-ONNX)
-            depth_map = depth_estimator.estimate_depth(original_frame)
+            # Step 2: Depth Estimation (UnidpethV2-ONNX or DepthAnythingV2-ONNX)
             try:
                 depth_map = depth_estimator.estimate_depth(original_frame)
                 depth_colored = depth_estimator.colorize_depth(depth_map)

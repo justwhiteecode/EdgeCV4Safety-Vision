@@ -72,7 +72,7 @@ sudo apt install meson ninja-build -y
    ```bash
    pip3 install -r requirements.txt
    ```
-3) Install ONNX runtime. This installation is critical and depends on your hardware.
+3) Install ONNX runtime. This installation is critical and depends on your hardware. For any doubts, check [documentation](https://onnxruntime.ai/docs/install/).
     
     * For **CPU only** sysyems:
       ```bash
@@ -84,7 +84,7 @@ sudo apt install meson ninja-build -y
       pip3 install onnxruntime-gpu
       ```
     
-    * For **NVIDIA Jetson**: Follow the official NVIDIA instructions to install the version optimized for JetPack. Some resources are available [here](https://elinux.org/Jetson_Zoo#ONNX_Runtime).
+    * For **NVIDIA Jetson**: Follow the official NVIDIA instructions to install the version optimized for JetPack. Some resources are available [here](https://elinux.org/Jetson_Zoo#ONNX_Runtime) and [here](https://pypi.jetson-ai-lab.io/jp6/cu126).
       ```bash
       # Download pip wheel from location above for your version of JetPack
       wget https://nvidia.box.com/shared/static/iizg3ggrtdkqawkmebbfixo7sce6j365.whl -O onnxruntime_gpu-1.16.0-cp38-cp38-linux_aarch64.whl
